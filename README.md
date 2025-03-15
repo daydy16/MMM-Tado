@@ -30,26 +30,31 @@ cd MMM-Tado/
 npm install
 ```
 
-Configure the module in your `config.js` file.
+## Configuration
 
-## Using the module
-
-To use this module, add it to the modules array in the `config/config.js` file:
-````javascript
-units: 'metric',
-
-modules: [
-    {
-        module: 'MMM-Tado',
-        position: 'top_right', // This can be any of the regions.
-        config: {
-            username: 'your_tado_username', 
-            password: 'your_tado_password', 
-            updateInterval: 300000
-        }
+Add the module to the `config.js` file of your Magic Mirror installation:
+```javascript
+{
+    module: 'MMM-Tado',
+    position: 'top_right',
+    config: {
+        updateInterval: 60000 // Update interval in milliseconds
     }
-]
-````
+}
+```
+
+## Authentication
+
+The first time you run the module, you will need to authenticate with the Tado API. The module will log a URL that you need to visit in your browser to complete the authentication process. Check the logs for a message like this:
+```
+MMM-Tado: Device authentication required. Please visit the following URL:
+https://example.com/verify?user_code=XXXX
+```
+Visit the URL in your browser and follow the instructions to authenticate the module with your Tado account.
+
+## Usage
+
+Once authenticated, the module will automatically fetch data from your Tado account and display it on your Magic Mirror. The data will be updated at the interval specified in the configuration.
 
 ## Configuration options
 

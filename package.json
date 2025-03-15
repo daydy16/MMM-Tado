@@ -4,10 +4,9 @@
   "description": "A MagicMirror Module for your Tado Smart Thermostat.",
   "main": "MMM-Tado.js",
   "dependencies": {
-    "mocha-logger": "^1.0.7",
-    "node-tado-client": "^0.9.3"
+    "mocha-logger": "^1.0.8",
+    "node-tado-client": "^0.9.7"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

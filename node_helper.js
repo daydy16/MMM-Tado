@@ -1,111 +1,114 @@
 const NodeHelper = require("node_helper");
-const TadoClient = require("node-tado-client");
+const { Tado } = require("node-tado-client");
 const logger = require("mocha-logger");
+const fs = require("fs");
+const path = require("path");
+
+// Path to the token file in the module directory
+const TOKEN_FILE = path.join(__dirname, "tado_refresh_token.json");
 
 module.exports = NodeHelper.create({
-    tadoClient: {},
+    tadoClient: null,
     tadoMe: {},
     tadoHomes: [],
-    length_zones: undefined,
+    refreshToken: null,
 
     start: function() {
-        this.tadoClient = new TadoClient();
+        this.tadoClient = new Tado();
+
+        // Load a previously saved refresh token, if available
+        if (fs.existsSync(TOKEN_FILE)) {
+            try {
+                const data = fs.readFileSync(TOKEN_FILE, "utf8");
+                const tokenData = JSON.parse(data);
+                if (tokenData && tokenData.refresh_token) {
+                    this.refreshToken = tokenData.refresh_token;
+                    logger.log("MMM-Tado: Refresh token loaded.");
+                }
+            } catch (err) {
+                logger.error("MMM-Tado: Error loading refresh token", err);
+            }
+        } else {
+            logger.log("MMM-Tado: No saved refresh token found.");
+        }
+
+        // Set the token callback to save the refresh token whenever a new token is issued
+        this.tadoClient.setTokenCallback((token) => {
+            logger.log("MMM-Tado: New token received:", token);
+            if (token && token.refresh_token) {
+                this.refreshToken = token.refresh_token;
+                try {
+                    fs.writeFileSync(TOKEN_FILE, JSON.stringify(token), "utf8");
+                    logger.log("MMM-Tado: Refresh token saved.");
+                } catch (err) {
+                    logger.error("MMM-Tado: Error saving refresh token", err);
+                }
+            }
+        });
     },
 
     getData: async function() {
-        let self = this;
+        try {
+            // Authenticate with the saved refresh token (if available)
+            const [verify, futureToken] = await this.tadoClient.authenticate(this.refreshToken);
+            if (verify) {
+                logger.log("MMM-Tado: Device authentication required. Please visit the following URL:");
+                logger.log(verify.verification_uri_complete);
+                // Manual confirmation by the user is required here
+            }
+            await futureToken;
+            logger.log("MMM-Tado: Successfully authenticated.");
 
-        self.length_zones = undefined;
+            // Fetch user information
+            this.tadoMe = await this.tadoClient.getMe();
+            logger.log("MMM-Tado: User information retrieved.");
 
-        self.tadoClient.login(self.config.username, self.config.password).then(() => {
-            logger.log('MMM-Tado: Logged in');
-            self.tadoClient.getMe().then((me) => {
-                logger.log('MMM-Tado: Got me()');
-                self.tadoMe = me;
+            // Fetch all homes and their zones
+            this.tadoHomes = [];
+            for (const home of this.tadoMe.homes) {
+                logger.log(`MMM-Tado: Processing home: ${home.name}`);
+                const homeInfo = {
+                    id: home.id,
+                    name: home.name,
+                    zones: []
+                };
+                this.tadoHomes.push(homeInfo);
 
-                self.tadoMe.homes.forEach(home => {
-                    logger.log('MMM-Tado: Got homes()');
-                    let homeInfo = {};
-                    homeInfo.id = home.id;
-                    homeInfo.name = home.name;
-                    homeInfo.zones = [];
-
-                    self.tadoHomes.push(homeInfo);
-                    self.tadoClient.getZones(home.id).then((zones) => {
-                        logger.log('MMM-Tado: Got zones()');
-                        self.length_zones = zones.length;
-
-                        zones.forEach(zone => {
-                            let zoneInfo = {};
-                            zoneInfo.id = zone.id;
-                            zoneInfo.name = zone.name;
-                            zoneInfo.type = zone.type;
-                            zoneInfo.state = {};
-
-                            homeInfo.zones.push(zoneInfo);
-                            self.tadoClient.getZoneState(homeInfo.id, zoneInfo.id).then((state) => {
-                                zoneInfo.state = state;
-                            });
-                        });
-                    });
-                });
-            });
-        });
-
-        //Check if every state has been received
-        while (true) {
-            logger.log("MMM-Tado: Checking if all data is present");
-            if (self.length_zones !== undefined) {
-                try {
-                    let received_states = 0;
-                    self.tadoHomes.forEach(home => {
-                        home.zones.forEach(zone => {
-                            if (zone.state !== undefined &&
-                                Object.entries(zone.state).length !== 0) {
-                                received_states++;
-                            }
-                        });
-                    });
-
-                    if (received_states === self.length_zones) {
-                        logger.log("MMM-TADO: All data is present");
-                        self.sendSocketNotification('NEW_DATA', {'tadoMe': self.tadoMe, 'tadoHomes': self.tadoHomes});
-                        break;
-                    }
-                } catch (err) {
-                    //NOP
-                    logger.error("MMM-Tado: Not all data present");
+                const zones = await this.tadoClient.getZones(home.id);
+                logger.log(`MMM-Tado: Found ${zones.length} zone(s) for ${home.name}.`);
+                for (const zone of zones) {
+                    const zoneInfo = {
+                        id: zone.id,
+                        name: zone.name,
+                        type: zone.type,
+                        state: {}
+                    };
+                    homeInfo.zones.push(zoneInfo);
+                    zoneInfo.state = await this.tadoClient.getZoneState(home.id, zone.id);
+                    logger.log(`MMM-Tado: Retrieved state for zone ${zone.name}.`);
                 }
             }
 
-            // We don't have all the data yet
-            logger.log("MMM-Tado: Not all data present");
-            await self.sleep(1000);
+            // Send the collected data to the frontend module
+            this.sendSocketNotification("NEW_DATA", {
+                tadoMe: this.tadoMe,
+                tadoHomes: this.tadoHomes
+            });
+            logger.log("MMM-Tado: Data sent to the frontend.");
+        } catch (err) {
+            logger.error("MMM-Tado: Error in getData:", err);
         }
     },
 
     socketNotificationReceived: function(notification, payload) {
-        if (notification === "CONFIG") {            
+        if (notification === "CONFIG") {
             this.config = payload;
-
-            if (this.config.username === '' || this.config.password === '') {
-                return;
-            }
-
-            this.tadoMe = {};
-            this.tadoHomes = [];
+            // Start the initial data fetch
             this.getData();
-
-            let self = this;
-            setInterval(function () {
-                self.tadoMe = {};
-                self.tadoHomes = [];
-                self.getData();
+            // Regularly update the data according to the updateInterval
+            setInterval(() => {
+                this.getData();
             }, this.config.updateInterval);
         }
-    },
-
-    sleep: function(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 });
