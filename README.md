@@ -1,6 +1,8 @@
 # MagicMirror Module: MMM-Tado
 A MagicMirror Module for your Tado Smart Thermostat. 
 
+Forked from https://github.com/WouterEekhout and updated with the new login flow supported by Tado.
+
 ### The module displays the following information:
 
 * A symbol to show if the heater is currently active.
@@ -21,8 +23,8 @@ cd ~/MagicMirror/modules
 
 Clone this repository:
 ````
-git clone https://github.com/WouterEekhout/MMM-Tado
-````
+git clone https://github.com/daydy16/MMM-Tado
+```
 
 Install NPM dependencies from inside the MMM-Tado folder:
 ```
