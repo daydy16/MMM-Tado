@@ -17,12 +17,12 @@ Forked from https://github.com/WouterEekhout and updated with the new login flow
 ## Installation
 
 In your terminal, go to your MagicMirror's Module folder:
-````
+```
 cd ~/MagicMirror/modules
-````
+```
 
 Clone this repository:
-````
+```
 git clone https://github.com/daydy16/MMM-Tado
 ```
 
@@ -71,15 +71,6 @@ The following properties can be configured:
 		</tr>
 	</thead>
 	<tbody>
-        <tr>
-			<td><code>username</code></td>
-			<td><b>Required</b> - Your Tado username.</td>
-		</tr>
-        <tr>
-			<td><code>password</code></td>
-			<td><b>Required</b> - Your Tado password.</td>
-		</tr>
-        <tr>
             <td><code>updateInterval</code></td>
             <td><b>Optional</b> - In milliseconds the update interval. Default: <code>300000</code> 
             (5 minutes). This value cannot be lower than <code>300000</code>. Otherwise users get a
