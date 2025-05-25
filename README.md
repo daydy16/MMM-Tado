@@ -3,6 +3,10 @@ A MagicMirror Module for your Tado Smart Thermostat.
 
 Forked from https://github.com/WouterEekhout and updated with the new login flow supported by Tado.
 
+> ⚠️ **Deprecation Notice:**  
+> I no longer use or maintain this plugin.  
+> I suggest switching to [MMM-HomeAssistantDisplay by wonderslug](https://github.com/wonderslug/MMM-HomeAssistantDisplay).
+
 ### The module displays the following information:
 
 * A symbol to show if the heater is currently active.
